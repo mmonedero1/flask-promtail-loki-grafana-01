@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  flask-app:
+    build: ./app
+    restart: always
+    ports:
+      - "5000:5000"
+    networks:
+      - loki-net      
+    volumes:
+      - app-logs:/logs
+
+  loki:
+    image: grafana/loki:main
+    container_name: loki_flask
+    ports:
+      - "3100:3100"
+    networks:
+      - loki-net      
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:main
+    container_name: promtail_flask
+    depends_on:
+      - loki
+    networks:
+      - loki-net      
+    volumes:
+      - /var/log:/var/log
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - app-logs:/logs
+    command: -config.file=/etc/promtail/promtail-config.yml
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana_flask
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - loki-net
+
+networks:
+  loki-net:
+    driver: bridge
+
+volumes:
+  app-logs:
+  loki-data:
+  grafana-data:
